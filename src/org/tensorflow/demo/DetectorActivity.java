@@ -26,11 +26,13 @@ import android.graphics.Paint.Style;
 import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.media.ImageReader.OnImageAvailableListener;
+import android.os.Bundle;
 import android.os.SystemClock;
 import android.util.Size;
 import android.util.TypedValue;
 import android.view.Display;
 import android.view.Surface;
+import android.view.WindowManager;
 import android.widget.Toast;
 import java.io.IOException;
 import java.util.LinkedList;
@@ -242,6 +244,12 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
             lines.add("Crop: " + copy.getWidth() + "x" + copy.getHeight());
             lines.add("View: " + canvas.getWidth() + "x" + canvas.getHeight());
             lines.add("Rotation: " + sensorOrientation);
+            // YingLH Start
+            GPSTracker gps = new GPSTracker(getApplicationContext());
+            double latitude = gps.getLatitude();
+            double longitude = gps.getLongitude();
+            lines.add(String.format("lat:%.4f, lon:%.4f", latitude, longitude));
+            // YingLH End
             lines.add("Inference time: " + lastProcessingTimeMs + "ms");
 
             // YingLH-key: display rotation debugging text
