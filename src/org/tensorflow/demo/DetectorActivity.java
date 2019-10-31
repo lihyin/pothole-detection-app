@@ -196,8 +196,10 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
         new DrawCallback() {
           @Override
           public void drawCallback(final Canvas canvas) {
+            // YingLH-key: 4. draw(): draw detected bounding boxes
             tracker.draw(canvas);
             if (isDebug()) {
+              // YingLh-key: 4. drawDebug()
               tracker.drawDebug(canvas);
             }
           }
@@ -242,7 +244,8 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
             lines.add("Rotation: " + sensorOrientation);
             lines.add("Inference time: " + lastProcessingTimeMs + "ms");
 
-            borderedText.drawLines(canvas, 10, canvas.getHeight() - 10, lines);
+            // YingLH-key: display rotation debugging text
+            borderedText.drawLines(canvas, 10, canvas.getHeight() - 10, lines); // YingLH
           }
         });
   }
@@ -292,6 +295,8 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
           public void run() {
             LOGGER.i("Running detection on image " + currTimestamp);
             final long startTime = SystemClock.uptimeMillis();
+
+            // YingLH-key: 1. recognizeImage(): call the model to detect bounding boxes
             final List<Classifier.Recognition> results = detector.recognizeImage(croppedBitmap);
             lastProcessingTimeMs = SystemClock.uptimeMillis() - startTime;
 
@@ -321,7 +326,10 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
             for (final Classifier.Recognition result : results) {
               final RectF location = result.getLocation();
               if (location != null && result.getConfidence() >= minimumConfidence) {
-                canvas.drawRect(location, paint);
+                // YingLH-key: 2. drawRect() draw detection bounding box on debug image
+                canvas.drawRect(location, paint); // YingLH
+                canvas.drawText(String.format("%.2f", result.getConfidence()),
+                        result.getLocation().right, result.getLocation().bottom, paint); // YingLH
 
                 cropToFrameTransform.mapRect(location);
                 result.setLocation(location);
@@ -329,6 +337,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
               }
             }
 
+            // YingLH-key: 3. trackResults(): draw bounding boxes on the debugging images after pressing volume key
             tracker.trackResults(mappedRecognitions, luminanceCopy, currTimestamp);
             trackingOverlay.postInvalidate();
 

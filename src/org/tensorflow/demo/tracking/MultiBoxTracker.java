@@ -117,6 +117,7 @@ public class MultiBoxTracker {
     return frameToCanvasMatrix;
   }
 
+  // YingLH-key: 4.1 MultiBoxTracker::drawDebug()
   public synchronized void drawDebug(final Canvas canvas) {
     final Paint textPaint = new Paint();
     textPaint.setColor(Color.WHITE);
@@ -129,9 +130,12 @@ public class MultiBoxTracker {
 
     for (final Pair<Float, RectF> detection : screenRects) {
       final RectF rect = detection.second;
-      canvas.drawRect(rect, boxPaint);
-      canvas.drawText("" + detection.first, rect.left, rect.top, textPaint);
-      borderedText.drawText(canvas, rect.centerX(), rect.centerY(), "" + detection.first);
+      // YingLH-key: 4.1.1 drawRect(screenRects): draw bounding boxes on camera screen in debug mode after pressing volume key
+      // canvas.drawRect(rect, boxPaint); // YingLH
+      // YingLH-key: display confidence
+      // canvas.drawText("" + detection.first, rect.left, rect.top, textPaint); // YingLH
+      // YingLH-key: display confidence
+      // borderedText.drawText(canvas, rect.centerX(), rect.centerY(), "" + detection.first); // YingLH
     }
 
     if (objectTracker == null) {
@@ -151,12 +155,14 @@ public class MultiBoxTracker {
     }
 
     final Matrix matrix = getFrameToCanvasMatrix();
+    // YingLH-key: 4.1.2 MultiBoxTracker::drawDebug()
     objectTracker.drawDebug(canvas, matrix);
   }
 
   public synchronized void trackResults(
       final List<Recognition> results, final byte[] frame, final long timestamp) {
     logger.i("Processing %d results from %d", results.size(), timestamp);
+    // YingLH-key: 3.1 MultiBoxTracker::prcessResults()
     processResults(timestamp, results, frame);
   }
 
@@ -182,6 +188,8 @@ public class MultiBoxTracker {
       getFrameToCanvasMatrix().mapRect(trackedPos);
       boxPaint.setColor(recognition.color);
 
+      /* // YingLH Start
+      // YingLH-key: draw bounding box and confidence text on camera sceern
       final float cornerSize = Math.min(trackedPos.width(), trackedPos.height()) / 8.0f;
       canvas.drawRoundRect(trackedPos, cornerSize, cornerSize, boxPaint);
 
@@ -190,6 +198,7 @@ public class MultiBoxTracker {
               ? String.format("%s %.2f", recognition.title, recognition.detectionConfidence)
               : String.format("%.2f", recognition.detectionConfidence);
       borderedText.drawText(canvas, trackedPos.left + cornerSize, trackedPos.bottom, labelString);
+       */ // YingLH End
     }
   }
 
@@ -262,13 +271,16 @@ public class MultiBoxTracker {
       logger.v(
           "Result! Frame: " + result.getLocation() + " mapped to screen:" + detectionScreenRect);
 
+      // YingLH-key: 3.1.1 screenRects.add()
       screenRects.add(new Pair<Float, RectF>(result.getConfidence(), detectionScreenRect));
 
+      // YingLH-key: ignore small bounding boxes
       if (detectionFrameRect.width() < MIN_SIZE || detectionFrameRect.height() < MIN_SIZE) {
         logger.w("Degenerate rectangle! " + detectionFrameRect);
         continue;
       }
 
+      // YingLH-key: 3.1.2 rectsToTrack.add()
       rectsToTrack.add(new Pair<Float, Recognition>(result.getConfidence(), result));
     }
 
@@ -297,6 +309,7 @@ public class MultiBoxTracker {
 
     logger.i("%d rects to track", rectsToTrack.size());
     for (final Pair<Float, Recognition> potential : rectsToTrack) {
+      // YingLH-key
       handleDetection(originalFrame, timestamp, potential);
     }
   }
@@ -416,6 +429,7 @@ public class MultiBoxTracker {
     // Use the color from a replaced object before taking one from the color queue.
     trackedRecognition.color =
         recogToReplace != null ? recogToReplace.color : availableColors.poll();
+    // YingLH-key
     trackedObjects.add(trackedRecognition);
   }
 }

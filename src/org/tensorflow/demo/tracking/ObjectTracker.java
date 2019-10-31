@@ -368,6 +368,7 @@ public class ObjectTracker {
                         screenPoints[3] - keypointSize,
                         screenPoints[2] + keypointSize,
                         screenPoints[3] + keypointSize, p);
+
         p.setColor(Color.CYAN);
         canvas.drawLine(screenPoints[2], screenPoints[3],
                         screenPoints[0], screenPoints[1], p);

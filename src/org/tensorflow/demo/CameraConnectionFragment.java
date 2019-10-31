@@ -375,6 +375,7 @@ public class CameraConnectionFragment extends Fragment {
               Arrays.asList(map.getOutputSizes(ImageFormat.YUV_420_888)),
               new CompareSizesByArea());
 
+      // YingLH-key: set phone rotation
       sensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
 
       // Danger, W.R.! Attempting to use too large a preview size could  exceed the camera
