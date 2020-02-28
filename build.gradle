@@ -143,6 +143,14 @@ android {
     defaultConfig {
         targetSdkVersion 23
         minSdkVersion 21
+
+        Properties properties = new Properties()
+        if (project.rootProject.file('local.properties').canRead()) {
+            properties.load(project.rootProject.file("local.properties").newDataInputStream())
+        }
+
+        resValue 'string', 'ApiURL', properties.getProperty('ApiURL', '"xxx"')
+        resValue 'string', 'ApiKey', properties.getProperty('ApiKey', '"xxx"')
     }
 }
 
