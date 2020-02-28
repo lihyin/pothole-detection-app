@@ -28,22 +28,37 @@ import android.graphics.Typeface;
 import android.media.ImageReader.OnImageAvailableListener;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.provider.Settings;
+import android.util.Log;
 import android.util.Size;
 import android.util.TypedValue;
 import android.view.Display;
 import android.view.Surface;
 import android.view.WindowManager;
 import android.widget.Toast;
+
+// import com.opencsv.CSVWriter;
+
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.text.SimpleDateFormat;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.UUID;
 import java.util.Vector;
+
+import org.json.JSONObject;
 import org.tensorflow.demo.OverlayView.DrawCallback;
 import org.tensorflow.demo.env.BorderedText;
 import org.tensorflow.demo.env.ImageUtils;
 import org.tensorflow.demo.env.Logger;
 import org.tensorflow.demo.tracking.MultiBoxTracker;
 import org.tensorflow.demo.R; // Explicit import needed for internal Google builds.
+import android.provider.Settings.Secure;
 
 /**
  * An activity that uses a TensorFlowMultiBoxDetector and ObjectTracker to detect and then track
@@ -117,6 +132,8 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
   private boolean computingDetection = false;
 
   private long timestamp = 0;
+  private double latitude = 0.0;
+  private double longitude = 0.0;
 
   private Matrix frameToCropTransform;
   private Matrix cropToFrameTransform;
@@ -246,8 +263,8 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
             lines.add("Rotation: " + sensorOrientation);
             // YingLH Start
             GPSTracker gps = new GPSTracker(getApplicationContext());
-            double latitude = gps.getLatitude();
-            double longitude = gps.getLongitude();
+            latitude = gps.getLatitude();
+            longitude = gps.getLongitude();
             lines.add(String.format("lat:%.4f, lon:%.4f", latitude, longitude));
             // YingLH End
             lines.add("Inference time: " + lastProcessingTimeMs + "ms");
@@ -339,6 +356,12 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
                 canvas.drawText(String.format("%.2f", result.getConfidence()),
                         result.getLocation().right, result.getLocation().bottom, paint); // YingLH
 
+                sendPost(Math.round(result.getLocation().centerX() - result.getLocation().width() / 2),
+                        Math.round(result.getLocation().centerY() - result.getLocation().height() / 2),
+                        Math.round(result.getLocation().width()),
+                        Math.round(result.getLocation().height()),
+                        result.getConfidence());
+
                 cropToFrameTransform.mapRect(location);
                 result.setLocation(location);
                 mappedRecognitions.add(result);
@@ -353,6 +376,83 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
             computingDetection = false;
           }
         });
+  }
+
+  /*
+  private void writeToCSV() {
+    String baseDir = android.os.Environment.getExternalStorageDirectory().getAbsolutePath();
+    String fileName = "AnalysisData.csv";
+    String filePath = baseDir + File.separator + fileName;
+    File f = new File(filePath);
+    CSVWriter writer;
+    FileWriter mFileWriter;
+
+    // File exist
+    if(f.exists()&&!f.isDirectory())
+    {
+      mFileWriter = new FileWriter(filePath, true);
+      writer = new CSVWriter(mFileWriter);
+    }
+    else
+    {
+      writer = new CSVWriter(new FileWriter(filePath));
+    }
+
+    String[] data = {"Ship Name", "Scientist Name", "..."};
+
+    writer.writeNext(data);
+
+    writer.close();
+  }
+   */
+
+  private void sendPost(final int boundingbox_x, final int boundingbox_y,
+                        final int boundingbox_width, final int boundingbox_height,
+                        final float confidence) {
+    Thread thread = new Thread(new Runnable() {
+      @Override
+      public void run() {
+        try {
+          URL url = new URL(getString(R.string.ApiURL));
+          HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+          conn.setRequestMethod("POST");
+          conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+          conn.setRequestProperty("Accept","application/json");
+          conn.setRequestProperty("x-api-key", getString(R.string.ApiKey));
+          conn.setDoOutput(true);
+          conn.setDoInput(true);
+
+          JSONObject jsonParam = new JSONObject();
+          jsonParam.put("uuid", UUID.randomUUID().toString());
+          jsonParam.put("boundingbox_x", boundingbox_x);
+          jsonParam.put("boundingbox_y", boundingbox_y);
+          jsonParam.put("boundingbox_width", boundingbox_width);
+          jsonParam.put("boundingbox_height", boundingbox_height);
+          jsonParam.put("confidence", confidence);
+          jsonParam.put("latitude", latitude);
+          jsonParam.put("longitude", longitude);
+          jsonParam.put("device_id", Settings.Secure.getString(getContentResolver(),
+                  Settings.Secure.ANDROID_ID));
+
+          Log.i("JSON", jsonParam.toString());
+          DataOutputStream os = new DataOutputStream(conn.getOutputStream());
+          //os.writeBytes(URLEncoder.encode(jsonParam.toString(), "UTF-8"));
+          os.writeBytes(jsonParam.toString());
+
+          os.flush();
+          os.close();
+
+          Log.i("STATUS", String.valueOf(conn.getResponseCode()));
+          Log.i("MSG" , conn.getResponseMessage());
+
+          conn.disconnect();
+        } catch (Exception e) {
+          e.printStackTrace();
+        }
+      }
+    });
+
+    thread.start();
   }
 
   @Override
