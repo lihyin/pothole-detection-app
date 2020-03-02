@@ -28,6 +28,7 @@ import android.graphics.Typeface;
 import android.media.ImageReader.OnImageAvailableListener;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.provider.MediaStore;
 import android.provider.Settings;
 import android.util.Log;
 import android.util.Size;
@@ -356,7 +357,8 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
                 canvas.drawText(String.format("%.2f", result.getConfidence()),
                         result.getLocation().right, result.getLocation().bottom, paint); // YingLH
 
-                sendPost(Math.round(result.getLocation().centerX() - result.getLocation().width() / 2),
+                sendDetectionResult2Server(Math.round(result.getLocation().centerX()
+                                - result.getLocation().width() / 2),
                         Math.round(result.getLocation().centerY() - result.getLocation().height() / 2),
                         Math.round(result.getLocation().width()),
                         Math.round(result.getLocation().height()),
@@ -367,6 +369,14 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
                 mappedRecognitions.add(result);
               }
             }
+
+            // YingLH Start
+            // Save original image and detection result image
+            MediaStore.Images.Media.insertImage(getContentResolver(), croppedBitmap,
+                    "original", "description");
+            MediaStore.Images.Media.insertImage(getContentResolver(), cropCopyBitmap,
+                    "detection_result", "description");
+            // YingLH End
 
             // YingLH-key: 3. trackResults(): draw bounding boxes on the debugging images after pressing volume key
             tracker.trackResults(mappedRecognitions, luminanceCopy, currTimestamp);
@@ -406,7 +416,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
   }
    */
 
-  private void sendPost(final int boundingbox_x, final int boundingbox_y,
+  private void sendDetectionResult2Server(final int boundingbox_x, final int boundingbox_y,
                         final int boundingbox_width, final int boundingbox_height,
                         final float confidence) {
     Thread thread = new Thread(new Runnable() {
