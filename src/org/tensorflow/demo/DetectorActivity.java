@@ -349,6 +349,9 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
             final List<Classifier.Recognition> mappedRecognitions =
                 new LinkedList<Classifier.Recognition>();
 
+            String uuid = UUID.randomUUID().toString();
+
+            Integer i = 0;
             for (final Classifier.Recognition result : results) {
               final RectF location = result.getLocation();
               if (location != null && result.getConfidence() >= minimumConfidence
@@ -358,7 +361,8 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
                 canvas.drawText(String.format("%.2f", result.getConfidence()),
                         result.getLocation().right, result.getLocation().bottom, paint); // YingLH
 
-                sendDetectionResult2Server(Math.round(result.getLocation().left),
+                sendDetectionResult2Server(uuid + "-" + (i++).toString(),
+                        Math.round(result.getLocation().left),
                         Math.round(result.getLocation().top),
                         Math.round(result.getLocation().width()),
                         Math.round(result.getLocation().height()),
@@ -373,9 +377,9 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
             // YingLH Start
             // Save original image and detection result image
             MediaStore.Images.Media.insertImage(getContentResolver(), croppedBitmap,
-                    "original", "description");
+                    uuid + "original", "description");
             MediaStore.Images.Media.insertImage(getContentResolver(), cropCopyBitmap,
-                    "detection_result", "description");
+                    uuid + "detection_result", "description");
             // YingLH End
 
             // YingLH-key: 3. trackResults(): draw bounding boxes on the debugging images after pressing volume key
@@ -416,7 +420,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
   }
    */
 
-  private void sendDetectionResult2Server(final int boundingbox_x, final int boundingbox_y,
+  private void sendDetectionResult2Server(final String uuid, final int boundingbox_x, final int boundingbox_y,
                         final int boundingbox_width, final int boundingbox_height,
                         final float confidence) {
     Thread thread = new Thread(new Runnable() {
@@ -433,7 +437,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
           conn.setDoInput(true);
 
           JSONObject jsonParam = new JSONObject();
-          jsonParam.put("uuid", UUID.randomUUID().toString());
+          jsonParam.put("uuid", uuid);
           jsonParam.put("boundingbox_x", boundingbox_x);
           jsonParam.put("boundingbox_y", boundingbox_y);
           jsonParam.put("boundingbox_width", boundingbox_width);
