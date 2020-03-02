@@ -351,15 +351,15 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
 
             for (final Classifier.Recognition result : results) {
               final RectF location = result.getLocation();
-              if (location != null && result.getConfidence() >= minimumConfidence) {
+              if (location != null && result.getConfidence() >= minimumConfidence
+                    && result.getLocation().top > (cropCopyBitmap.getHeight() * 1.0 / 3.0)) { // YingLH: Rule: ignore the result from the top 1/3 part of the image
                 // YingLH-key: 2. drawRect() draw detection bounding box on debug image
                 canvas.drawRect(location, paint); // YingLH
                 canvas.drawText(String.format("%.2f", result.getConfidence()),
                         result.getLocation().right, result.getLocation().bottom, paint); // YingLH
 
-                sendDetectionResult2Server(Math.round(result.getLocation().centerX()
-                                - result.getLocation().width() / 2),
-                        Math.round(result.getLocation().centerY() - result.getLocation().height() / 2),
+                sendDetectionResult2Server(Math.round(result.getLocation().left),
+                        Math.round(result.getLocation().top),
                         Math.round(result.getLocation().width()),
                         Math.round(result.getLocation().height()),
                         result.getConfidence());
