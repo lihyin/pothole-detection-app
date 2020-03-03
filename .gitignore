@@ -1,5 +1,6 @@
 # This file is based on https://github.com/github/gitignore/blob/master/Android.gitignore
 *.iml
+.idea
 .idea/compiler.xml
 .idea/copyright
 .idea/dictionaries
@@ -11,7 +12,6 @@
 .idea/runConfigurations.xml
 .idea/tasks.xml
 .idea/workspace.xml
-.idea
 .gradle
 local.properties
 .DS_Store
