@@ -104,7 +104,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
   // checkpoints.  Optionally use legacy Multibox (trained using an older version of the API)
   // or YOLO.
   private enum DetectorMode {
-    TF_OD_API, MULTIBOX, YOLO;
+    TF_OD_API, MULTIBOX, YOLO
   }
   // private static final DetectorMode MODE = DetectorMode.TF_OD_API; //YOLO; // YingLH
   private static final DetectorMode MODE = DetectorMode.YOLO; // YingLH
@@ -355,7 +355,13 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
             for (final Classifier.Recognition result : results) {
               final RectF location = result.getLocation();
               if (location != null && result.getConfidence() >= minimumConfidence
-                    && result.getLocation().top > (cropCopyBitmap.getHeight() * 1.0 / 3.0)) { // YingLH: Rule: ignore the result from the top 1/3 part of the image
+                      && result.getLocation().top > (cropCopyBitmap.getHeight() * 2.0 / 5.0)
+                      && result.getLocation().bottom > (cropCopyBitmap.getHeight() * 1.0 / 10.0)
+                      && result.getLocation().left > (cropCopyBitmap.getWidth() * 1.0 / 6.0)
+                      && result.getLocation().right < (cropCopyBitmap.getWidth() * 5.0 / 6.0)
+                    ) { // YingLH-Rule: ignore the result from the top 2/5 part of the image
+                        // YingLH-Rule: ignore the result from the bottom 1/10 part of the image
+                        // YingLH-Rule: ignore the result from the left and right 1/6 part of the image
                 // YingLH-key: 2. drawRect() draw detection bounding box on debug image
                 canvas.drawRect(location, paint); // YingLH
                 canvas.drawText(String.format("%.2f", result.getConfidence()),
@@ -420,7 +426,8 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
   }
    */
 
-  private void sendDetectionResult2Server(final String uuid, final int boundingbox_x, final int boundingbox_y,
+  private void sendDetectionResult2Server(final String uuid,
+                        final int boundingbox_x, final int boundingbox_y,
                         final int boundingbox_width, final int boundingbox_height,
                         final float confidence) {
     Thread thread = new Thread(new Runnable() {
