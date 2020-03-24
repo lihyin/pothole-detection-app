@@ -83,7 +83,7 @@ public class ImageUtils {
     }
     try {
       final FileOutputStream out = new FileOutputStream(file);
-      bitmap.compress(Bitmap.CompressFormat.PNG, 99, out);
+      bitmap.compress(Bitmap.CompressFormat.JPEG, 80, out);
       out.flush();
       out.close();
     } catch (final Exception e) {

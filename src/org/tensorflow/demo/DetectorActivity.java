@@ -23,8 +23,10 @@ import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Paint.Style;
+import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Typeface;
+import android.hardware.Camera;
 import android.media.ImageReader.OnImageAvailableListener;
 import android.os.Bundle;
 import android.os.SystemClock;
@@ -34,19 +36,24 @@ import android.util.Log;
 import android.util.Size;
 import android.util.TypedValue;
 import android.view.Display;
+import android.view.MotionEvent;
 import android.view.Surface;
+import android.view.View;
 import android.view.WindowManager;
+import android.widget.GridView;
 import android.widget.Toast;
 
 // import com.opencsv.CSVWriter;
 
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
@@ -60,6 +67,7 @@ import org.tensorflow.demo.env.Logger;
 import org.tensorflow.demo.tracking.MultiBoxTracker;
 import org.tensorflow.demo.R; // Explicit import needed for internal Google builds.
 import android.provider.Settings.Secure;
+import android.view.View.OnTouchListener;
 
 /**
  * An activity that uses a TensorFlowMultiBoxDetector and ObjectTracker to detect and then track
@@ -119,6 +127,8 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
   private static final Size DESIRED_PREVIEW_SIZE = new Size(640, 480);
 
   private static final boolean SAVE_PREVIEW_BITMAP = true;
+  private static final boolean SAVE_ORIGINAL_BITMAP = true;
+  private static final boolean SAVE_DETECTION_RESULT_BITMAP = true;
   private static final float TEXT_SIZE_DIP = 10;
 
   private Integer sensorOrientation;
@@ -381,11 +391,22 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
             }
 
             // YingLH Start
-            // Save original image and detection result image
-            MediaStore.Images.Media.insertImage(getContentResolver(), croppedBitmap,
-                    uuid + "original", "description");
-            MediaStore.Images.Media.insertImage(getContentResolver(), cropCopyBitmap,
-                    uuid + "detection_result", "description");
+            rgbFrameBitmap.setPixels(getRgbBytes(), 0, previewWidth, 0, 0, previewWidth, previewHeight);
+
+
+            if (SAVE_ORIGINAL_BITMAP == true) {
+              ImageUtils.saveBitmap(croppedBitmap, uuid + "_original.jpg");
+            }
+
+            if (SAVE_DETECTION_RESULT_BITMAP == true) {
+              ImageUtils.saveBitmap(cropCopyBitmap, uuid + "_detection_result.jpg");
+            }
+
+            // Save to photo gallery in JPEG
+            //MediaStore.Images.Media.insertImage(getContentResolver(), croppedBitmap,
+            //        uuid + "_original", "description");
+            //MediaStore.Images.Media.insertImage(getContentResolver(), cropCopyBitmap,
+            //        uuid + "_detection_result", "description");
             // YingLH End
 
             // YingLH-key: 3. trackResults(): draw bounding boxes on the debugging images after pressing volume key
