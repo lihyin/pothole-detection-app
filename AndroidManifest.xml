@@ -46,7 +46,6 @@
             </intent-filter>
         </activity>
 
-        <!-- // YingLH
         <activity android:name="org.tensorflow.demo.ClassifierActivity"
                   android:screenOrientation="portrait"
                   android:label="@string/activity_name_classification">
@@ -76,7 +75,6 @@
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
         </activity>
-        -->
     </application>
 
 </manifest>

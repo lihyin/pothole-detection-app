@@ -151,6 +151,8 @@ android {
 
         resValue 'string', 'ApiURL', properties.getProperty('ApiURL', '"xxx"')
         resValue 'string', 'ApiKey', properties.getProperty('ApiKey', '"xxx"')
+        resValue 'string', 'AmazonIdentityPoolID', properties.getProperty('AmazonIdentityPoolID', '"xxx"')
+        resValue 'string', 'AmazonRegion', properties.getProperty('AmazonRegion', '"xxx"')
     }
 }
 
@@ -203,4 +205,6 @@ dependencies {
     if (nativeBuildSystem == 'cmake' || nativeBuildSystem == 'none') {
         implementation 'org.tensorflow:tensorflow-android:1.4.0'
     }
+
+    compile 'com.amazonaws:aws-android-sdk-s3:2.16.+'
 }

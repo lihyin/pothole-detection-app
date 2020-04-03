@@ -59,6 +59,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.Vector;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.tensorflow.demo.OverlayView.DrawCallback;
 import org.tensorflow.demo.env.BorderedText;
@@ -68,6 +69,16 @@ import org.tensorflow.demo.tracking.MultiBoxTracker;
 import org.tensorflow.demo.R; // Explicit import needed for internal Google builds.
 import android.provider.Settings.Secure;
 import android.view.View.OnTouchListener;
+
+import com.amazonaws.auth.CognitoCachingCredentialsProvider;
+import com.amazonaws.mobileconnectors.s3.transferutility.TransferListener;
+import com.amazonaws.mobileconnectors.s3.transferutility.TransferObserver;
+import com.amazonaws.mobileconnectors.s3.transferutility.TransferState;
+import com.amazonaws.mobileconnectors.s3.transferutility.TransferUtility;
+import com.amazonaws.regions.Regions;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.model.CannedAccessControlList;
 
 /**
  * An activity that uses a TensorFlowMultiBoxDetector and ObjectTracker to detect and then track
@@ -128,6 +139,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
 
   private static final boolean SAVE_PREVIEW_BITMAP = true;
   private static final boolean SAVE_ORIGINAL_BITMAP = true;
+  private static final boolean SAVE_ORIGINAL_BITMAP_TO_AMAZON_S3 = true;
   private static final boolean SAVE_DETECTION_RESULT_BITMAP = true;
   private static final float TEXT_SIZE_DIP = 10;
 
@@ -362,6 +374,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
             String uuid = UUID.randomUUID().toString();
 
             Integer i = 0;
+            JSONArray jsonArrayResults = new JSONArray();
             for (final Classifier.Recognition result : results) {
               final RectF location = result.getLocation();
               if (location != null && result.getConfidence() >= minimumConfidence
@@ -377,37 +390,59 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
                 canvas.drawText(String.format("%.2f", result.getConfidence()),
                         result.getLocation().right, result.getLocation().bottom, paint); // YingLH
 
-                sendDetectionResult2Server(uuid + "-" + (i++).toString(),
-                        Math.round(result.getLocation().left),
-                        Math.round(result.getLocation().top),
-                        Math.round(result.getLocation().width()),
-                        Math.round(result.getLocation().height()),
-                        result.getConfidence());
+                try {
+                  JSONObject jsonResult = new JSONObject();
+                  jsonResult.put("uuid", uuid + "-" + i.toString());
+                  jsonResult.put("boundingbox_x", Math.round(result.getLocation().left));
+                  jsonResult.put("boundingbox_y", Math.round(result.getLocation().top));
+                  jsonResult.put("boundingbox_width", Math.round(result.getLocation().width()));
+                  jsonResult.put("boundingbox_height", Math.round(result.getLocation().height()));
+                  jsonResult.put("confidence", result.getConfidence());
+                  jsonResult.put("latitude", latitude);
+                  jsonResult.put("longitude", longitude);
+                  jsonResult.put("device_id", Settings.Secure.getString(getContentResolver(),
+                          Settings.Secure.ANDROID_ID));
+
+                  jsonArrayResults.put(jsonResult);
+                } catch (Exception e) {
+                  e.printStackTrace();
+                }
 
                 cropToFrameTransform.mapRect(location);
                 result.setLocation(location);
                 mappedRecognitions.add(result);
+
+                i++;
               }
             }
 
             // YingLH Start
             rgbFrameBitmap.setPixels(getRgbBytes(), 0, previewWidth, 0, 0, previewWidth, previewHeight);
 
+            if (i > 0) { // Rule: only save photos and send results to server with detected objects
 
-            if (SAVE_ORIGINAL_BITMAP == true) {
-              ImageUtils.saveBitmap(croppedBitmap, uuid + "_original.jpg");
+              sendDetectionResultArray2Server(jsonArrayResults);
+
+              if (SAVE_ORIGINAL_BITMAP == true) {
+                File file;
+                file = ImageUtils.saveBitmap(croppedBitmap, uuid + "_original.jpg");
+
+                if (SAVE_ORIGINAL_BITMAP_TO_AMAZON_S3 == true) {
+                  saveImage2AmazonS3(file, uuid + "_original.jpg");
+                }
+              }
+
+              if (SAVE_DETECTION_RESULT_BITMAP == true) {
+                ImageUtils.saveBitmap(cropCopyBitmap, uuid + "_detection_result.jpg");
+              }
+
+              // Save to photo gallery in JPEG
+              //MediaStore.Images.Media.insertImage(getContentResolver(), croppedBitmap,
+              //        uuid + "_original", "description");
+              //MediaStore.Images.Media.insertImage(getContentResolver(), cropCopyBitmap,
+              //        uuid + "_detection_result", "description");
+              // YingLH End
             }
-
-            if (SAVE_DETECTION_RESULT_BITMAP == true) {
-              ImageUtils.saveBitmap(cropCopyBitmap, uuid + "_detection_result.jpg");
-            }
-
-            // Save to photo gallery in JPEG
-            //MediaStore.Images.Media.insertImage(getContentResolver(), croppedBitmap,
-            //        uuid + "_original", "description");
-            //MediaStore.Images.Media.insertImage(getContentResolver(), cropCopyBitmap,
-            //        uuid + "_detection_result", "description");
-            // YingLH End
 
             // YingLH-key: 3. trackResults(): draw bounding boxes on the debugging images after pressing volume key
             tracker.trackResults(mappedRecognitions, luminanceCopy, currTimestamp);
@@ -417,6 +452,47 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
             computingDetection = false;
           }
         });
+  }
+
+  public void saveImage2AmazonS3(File file, String filename) {
+    // Initialize the Amazon Cognito credentials provider
+    CognitoCachingCredentialsProvider credentialsProvider = new CognitoCachingCredentialsProvider(
+            getApplicationContext(),
+            getString(R.string.AmazonIdentityPoolID), // Identity pool ID
+            Regions.fromName(getString(R.string.AmazonRegion)) // Region
+    );
+
+    AmazonS3 s3 = new AmazonS3Client(credentialsProvider);
+    TransferUtility transferUtility = new TransferUtility(s3, getApplicationContext());
+    final TransferObserver observer = transferUtility.upload(
+            "pothole-detection-production",  //this is the bucket name on S3
+            "photo/" + filename, //this is the path and name
+            file, //path to the file locally
+            CannedAccessControlList.Private //to make the file public
+    );
+
+    observer.setTransferListener(new TransferListener() {
+      @Override
+      public void onStateChanged(int id, TransferState state) {
+        if (state.equals(TransferState.COMPLETED)) {
+          //Success
+          LOGGER.d("Successfully uploaded photo to Amazon S3");
+        } else if (state.equals(TransferState.FAILED)) {
+          //Failed
+          LOGGER.e("Failed to upload photo to Amazon S3");
+        }
+      }
+
+      @Override
+      public void onProgressChanged(int id, long bytesCurrent, long bytesTotal) {
+
+      }
+
+      @Override
+      public void onError(int id, Exception ex) {
+        LOGGER.e(ex, "Error when uploading images to Amazon S3");
+      }
+    });
   }
 
   /*
@@ -447,10 +523,45 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
   }
    */
 
+  private void sendDetectionResultArray2Server(final JSONArray jsonArrayResults) {
+    Thread thread = new Thread(new Runnable() {
+      @Override
+      public void run() {
+        try {
+          URL url = new URL(getString(R.string.ApiURL));
+          HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+          conn.setRequestMethod("POST");
+          conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+          conn.setRequestProperty("Accept","application/json");
+          conn.setRequestProperty("x-api-key", getString(R.string.ApiKey));
+          conn.setDoOutput(true);
+          conn.setDoInput(true);
+
+          Log.i("JSON", jsonArrayResults.toString());
+          DataOutputStream os = new DataOutputStream(conn.getOutputStream());
+          //os.writeBytes(URLEncoder.encode(jsonParam.toString(), "UTF-8"));
+          os.writeBytes(jsonArrayResults.toString());
+
+          os.flush();
+          os.close();
+
+          Log.i("STATUS", String.valueOf(conn.getResponseCode()));
+          Log.i("MSG" , conn.getResponseMessage());
+
+          conn.disconnect();
+        } catch (Exception e) {
+          LOGGER.e(e, "sendDetectionResult2Server Error!");
+        }
+      }
+    });
+
+    thread.start();
+  }
+
   private void sendDetectionResult2Server(final String uuid,
                         final int boundingbox_x, final int boundingbox_y,
                         final int boundingbox_width, final int boundingbox_height,
-                        final float confidence) {
+                        final double confidence) {
     Thread thread = new Thread(new Runnable() {
       @Override
       public void run() {
@@ -489,7 +600,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
 
           conn.disconnect();
         } catch (Exception e) {
-          e.printStackTrace();
+          LOGGER.e(e, "sendDetectionResult2Server Error!");
         }
       }
     });
