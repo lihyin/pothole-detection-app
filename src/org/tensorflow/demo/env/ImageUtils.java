@@ -61,6 +61,7 @@ public class ImageUtils {
     saveBitmap(bitmap, "preview.png");
   }
 
+
   /**
    * Saves a Bitmap object to disk for analysis.
    *
@@ -68,8 +69,18 @@ public class ImageUtils {
    * @param filename The location to save the bitmap to.
    */
   public static File saveBitmap(final Bitmap bitmap, final String filename) {
+    return saveBitmap(bitmap, "tensorflow", filename);
+  }
+
+  /**
+   * Saves a Bitmap object to disk for analysis.
+   *
+   * @param bitmap The bitmap to save.
+   * @param filename The location to save the bitmap to.
+   */
+  public static File saveBitmap(final Bitmap bitmap, final String folder, final String filename) {
     final String root =
-        Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "tensorflow";
+        Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + folder;
     LOGGER.i("Saving %dx%d bitmap to %s.", bitmap.getWidth(), bitmap.getHeight(), root);
     final File myDir = new File(root);
 

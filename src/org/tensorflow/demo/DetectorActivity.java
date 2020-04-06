@@ -138,9 +138,6 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
   private static final Size DESIRED_PREVIEW_SIZE = new Size(640, 480);
 
   private static final boolean SAVE_PREVIEW_BITMAP = true;
-  private static final boolean SAVE_ORIGINAL_BITMAP = true;
-  private static final boolean SAVE_ORIGINAL_BITMAP_TO_AMAZON_S3 = true;
-  private static final boolean SAVE_DETECTION_RESULT_BITMAP = true;
   private static final float TEXT_SIZE_DIP = 10;
 
   private Integer sensorOrientation;
@@ -402,6 +399,8 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
                   jsonResult.put("longitude", longitude);
                   jsonResult.put("device_id", Settings.Secure.getString(getContentResolver(),
                           Settings.Secure.ANDROID_ID));
+                  jsonResult.put("for_training",
+                            getString(R.string.CollectingTrainingData).equalsIgnoreCase("true"));
 
                   jsonArrayResults.put(jsonResult);
                 } catch (Exception e) {
@@ -423,17 +422,12 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
 
               sendDetectionResultArray2Server(jsonArrayResults);
 
-              if (SAVE_ORIGINAL_BITMAP == true) {
+              if (getString(R.string.CollectingTrainingData).equalsIgnoreCase("true")) {
                 File file;
                 file = ImageUtils.saveBitmap(croppedBitmap, uuid + "_original.jpg");
-
-                if (SAVE_ORIGINAL_BITMAP_TO_AMAZON_S3 == true) {
-                  saveImage2AmazonS3(file, uuid + "_original.jpg");
-                }
-              }
-
-              if (SAVE_DETECTION_RESULT_BITMAP == true) {
                 ImageUtils.saveBitmap(cropCopyBitmap, uuid + "_detection_result.jpg");
+
+                saveImage2AmazonS3(file, uuid + ".jpg");
               }
 
               // Save to photo gallery in JPEG

@@ -153,6 +153,7 @@ android {
         resValue 'string', 'ApiKey', properties.getProperty('ApiKey', '"xxx"')
         resValue 'string', 'AmazonIdentityPoolID', properties.getProperty('AmazonIdentityPoolID', '"xxx"')
         resValue 'string', 'AmazonRegion', properties.getProperty('AmazonRegion', '"xxx"')
+        resValue 'string', 'CollectingTrainingData', properties.getProperty('CollectingTrainingData', '"false"')
     }
 }
 
