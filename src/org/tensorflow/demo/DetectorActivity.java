@@ -371,7 +371,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
             String uuid = UUID.randomUUID().toString();
 
             Integer i = 0;
-            JSONArray jsonArrayResults = new JSONArray();
+            JSONArray jsonArrayPothole = new JSONArray();
             for (final Classifier.Recognition result : results) {
               final RectF location = result.getLocation();
               if (location != null && result.getConfidence() >= minimumConfidence
@@ -388,23 +388,16 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
                         result.getLocation().right, result.getLocation().bottom, paint); // YingLH
 
                 try {
-                  JSONObject jsonResult = new JSONObject();
-                  jsonResult.put("uuid", uuid + "-" + i.toString());
-                  jsonResult.put("boundingbox_x", Math.round(result.getLocation().left));
-                  jsonResult.put("boundingbox_y", Math.round(result.getLocation().top));
-                  jsonResult.put("boundingbox_width", Math.round(result.getLocation().width()));
-                  jsonResult.put("boundingbox_height", Math.round(result.getLocation().height()));
-                  jsonResult.put("confidence", result.getConfidence());
-                  jsonResult.put("latitude", latitude);
-                  jsonResult.put("longitude", longitude);
-                  jsonResult.put("device_id", Settings.Secure.getString(getContentResolver(),
-                          Settings.Secure.ANDROID_ID));
-                  jsonResult.put("for_training",
-                            getString(R.string.CollectingTrainingData).equalsIgnoreCase("true"));
+                  JSONObject jsonPothole = new JSONObject();
+                  jsonPothole.put("boundingbox_x", Math.round(result.getLocation().left));
+                  jsonPothole.put("boundingbox_y", Math.round(result.getLocation().top));
+                  jsonPothole.put("boundingbox_width", Math.round(result.getLocation().width()));
+                  jsonPothole.put("boundingbox_height", Math.round(result.getLocation().height()));
+                  jsonPothole.put("confidence", result.getConfidence());
 
-                  jsonArrayResults.put(jsonResult);
+                  jsonArrayPothole.put(jsonPothole);
                 } catch (Exception e) {
-                  e.printStackTrace();
+                  LOGGER.e(e, "JSONObject Error!");
                 }
 
                 cropToFrameTransform.mapRect(location);
@@ -415,17 +408,31 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
               }
             }
 
+            JSONObject jsonResult = new JSONObject();
+            try {
+              jsonResult.put("uuid", uuid);
+              jsonResult.put("potholes", jsonArrayPothole);
+              jsonResult.put("latitude", latitude);
+              jsonResult.put("longitude", longitude);
+              jsonResult.put("device_id", Settings.Secure.getString(getContentResolver(),
+                      Settings.Secure.ANDROID_ID));
+              jsonResult.put("for_training",
+                      getString(R.string.CollectingTrainingData).equalsIgnoreCase("true"));
+            } catch (Exception e) {
+              LOGGER.e(e, "JSONObject Error!");
+            }
+
             // YingLH Start
             rgbFrameBitmap.setPixels(getRgbBytes(), 0, previewWidth, 0, 0, previewWidth, previewHeight);
 
             if (i > 0) { // Rule: only save photos and send results to server with detected objects
 
-              sendDetectionResultArray2Server(jsonArrayResults);
+              sendDetectionResultArray2Server(jsonResult);
 
               if (getString(R.string.CollectingTrainingData).equalsIgnoreCase("true")) {
                 File file;
-                file = ImageUtils.saveBitmap(croppedBitmap, uuid + "_original.jpg");
-                ImageUtils.saveBitmap(cropCopyBitmap, uuid + "_detection_result.jpg");
+                file = ImageUtils.saveBitmap(croppedBitmap, "original", uuid + ".jpg");
+                ImageUtils.saveBitmap(cropCopyBitmap, "detection_result", uuid + ".jpg");
 
                 saveImage2AmazonS3(file, uuid + ".jpg");
               }
@@ -517,7 +524,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
   }
    */
 
-  private void sendDetectionResultArray2Server(final JSONArray jsonArrayResults) {
+  private void sendDetectionResultArray2Server(final JSONObject jsonResult) {
     Thread thread = new Thread(new Runnable() {
       @Override
       public void run() {
@@ -531,10 +538,10 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
           conn.setDoOutput(true);
           conn.setDoInput(true);
 
-          Log.i("JSON", jsonArrayResults.toString());
+          Log.i("JSON", jsonResult.toString());
           DataOutputStream os = new DataOutputStream(conn.getOutputStream());
           //os.writeBytes(URLEncoder.encode(jsonParam.toString(), "UTF-8"));
-          os.writeBytes(jsonArrayResults.toString());
+          os.writeBytes(jsonResult.toString());
 
           os.flush();
           os.close();
